@@ -8,43 +8,54 @@ function App() {
   const ws = useRef(null);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-  if ("Notification" in window) {
-    if (Notification.permission === "default") {
+  // ✅ Request notification permission AFTER user action
+  const enableNotifications = () => {
+    if ("Notification" in window) {
       Notification.requestPermission();
     }
-  }
-}, []);
-
+  };
 
   useEffect(() => {
-    ws.current = new WebSocket("wss://omeglebackend-production.up.railway.app/ws");
+    ws.current = new WebSocket(
+      "wss://omeglebackend-production.up.railway.app/ws"
+    );
 
     ws.current.onmessage = (event) => {
-      if (event.data === "WAITING") {
+      const msg = event.data;
+
+      if (msg === "WAITING") {
         setStatus("Waiting for stranger...");
-      } else if (event.data === "MATCHED") {
+        return;
+      }
+
+      if (msg === "MATCHED") {
         setStatus("Connected to a stranger");
-      } else if (event.data === "PARTNER_LEFT") {
+        return;
+      }
+
+      if (msg === "PARTNER_LEFT") {
         setStatus("Stranger left. Waiting...");
         setMessages([]);
-      } else {
-        setMessages((prev) => [...prev, { from: "Stranger", text: event.data }]);
-        // 🔔 SHOW CHROME NOTIFICATION
-        if (
-          Notification.permission === "granted" &&
-          document.hidden // tab not active
-        ) {
-          const notification = new Notification("New message from Stranger", {
-            body: event.data,
-            icon: "https://cdn-icons-png.flaticon.com/512/733/733585.png", // optional
-          });
+        return;
+      }
 
-          notification.onclick = () => {
-            window.focus();
-            notification.close();
-          };
-        }
+      // ✅ Stranger message
+      setMessages((prev) => [...prev, { from: "Stranger", text: msg }]);
+
+      // 🔔 Chrome notification
+      if (
+        "Notification" in window &&
+        Notification.permission === "granted" &&
+        document.visibilityState === "hidden"
+      ) {
+        const notification = new Notification("New message from Stranger", {
+          body: msg,
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
       }
     };
 
@@ -71,6 +82,13 @@ function App() {
       <div style={styles.chatContainer}>
         <h2 style={styles.title}>Anonymous Random Chat</h2>
         <p style={styles.status}>{status}</p>
+
+        {/* ✅ Enable notifications button */}
+        {Notification.permission !== "granted" && (
+          <button style={styles.notifyBtn} onClick={enableNotifications}>
+            Enable Notifications 🔔
+          </button>
+        )}
 
         <div style={styles.messages}>
           {messages.map((m, i) => (
@@ -126,15 +144,22 @@ const styles = {
     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
   title: {
-    margin: "0 0 10px 0",
     textAlign: "center",
     color: "#333",
   },
   status: {
     textAlign: "center",
-    marginBottom: "10px",
     fontStyle: "italic",
     color: "#666",
+  },
+  notifyBtn: {
+    margin: "10px auto",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    border: "none",
+    backgroundColor: "#ff9800",
+    color: "#fff",
+    cursor: "pointer",
   },
   messages: {
     flex: 1,
@@ -153,7 +178,6 @@ const styles = {
     borderRadius: "15px",
     maxWidth: "70%",
     wordBreak: "break-word",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
   },
   inputContainer: {
     display: "flex",
@@ -164,7 +188,6 @@ const styles = {
     padding: "10px",
     borderRadius: "20px",
     border: "1px solid #ccc",
-    outline: "none",
   },
   button: {
     padding: "10px 20px",
