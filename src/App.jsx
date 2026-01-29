@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 function App() {
+  const [mode, setMode] = useState("random"); // random | group
   const [status, setStatus] = useState("Connecting...");
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -16,61 +17,45 @@ function App() {
   };
 
   // 🔌 Connect WebSocket
-  const connectSocket = () => {
+  const connectSocket = (selectedMode = mode) => {
     if (ws.current) ws.current.close();
 
-    ws.current = new WebSocket(
-      "wss://omeglebackend-production.up.railway.app/ws"
+    // ws.current = new WebSocket(
+    //   `wss://omeglebackend-production.up.railway.app/ws?mode=${selectedMode}`
+    // );
+      ws.current = new WebSocket(
+      `ws://localhost:8000/ws?mode=${selectedMode}`
     );
 
-    setStatus("Connecting...");
     setMessages([]);
+    setStatus("Connecting...");
 
     ws.current.onmessage = (event) => {
       const msg = event.data;
 
-      if (msg === "WAITING") {
-        setStatus("Waiting for stranger...");
-        return;
-      }
+      // Random chat messages
+      if (msg === "WAITING") return setStatus("Waiting for stranger...");
+      if (msg === "MATCHED") return setStatus("Connected to stranger");
+      if (msg === "PARTNER_LEFT") return setStatus("Stranger left. Waiting...");
 
-      if (msg === "MATCHED") {
-        setStatus("Connected to a stranger");
-        return;
-      }
+      // Group chat message
+      if (msg === "CONNECTED_TO_GROUP") return setStatus("Connected to group chat");
 
-      if (msg === "PARTNER_LEFT") {
-        setStatus("Stranger left. Waiting...");
-        setMessages([]);
-        return;
-      }
+      // Normal messages
+      setMessages((prev) => [...prev, { from: "Other", text: msg }]);
 
-      // Stranger message
-      setMessages((prev) => [...prev, { from: "Stranger", text: msg }]);
-
-      // 🔔 Notification
-      if (
-        "Notification" in window &&
-        Notification.permission === "granted" &&
-        document.visibilityState === "hidden"
-      ) {
-        const n = new Notification("New message from Stranger", {
-          body: msg,
-        });
-
-        n.onclick = () => {
-          window.focus();
-          n.close();
-        };
+      // 🔔 Notifications
+      if ("Notification" in window && Notification.permission === "granted" && document.visibilityState === "hidden") {
+        const n = new Notification("New message", { body: msg });
+        n.onclick = () => { window.focus(); n.close(); };
       }
     };
   };
 
-  // Initial connection
   useEffect(() => {
     connectSocket();
     return () => ws.current && ws.current.close();
-  }, []);
+  }, [mode]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
@@ -79,32 +64,55 @@ function App() {
     setInput("");
   };
 
+  const newStranger = () => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send("NEW_STRANGER");
+      setMessages([]);
+      setStatus("Looking for new stranger...");
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") sendMessage();
-  };
-
   return (
     <div style={styles.container}>
       <div style={styles.chatContainer}>
-        <h2 style={styles.title}>Anonymous Random Chat</h2>
+        <h2 style={styles.title}>Anonymous Chat</h2>
         <p style={styles.status}>{status}</p>
 
-        {/* 🔔 Notification permission */}
+        {/* 🔀 Mode Switch */}
+        <div style={styles.switch}>
+          <button
+            style={mode === "random" ? styles.activeBtn : styles.btn}
+            onClick={() => setMode("random")}
+          >
+            🔀 Stranger
+          </button>
+          <button
+            style={mode === "group" ? styles.activeBtn : styles.btn}
+            onClick={() => setMode("group")}
+          >
+            👥 Group
+          </button>
+        </div>
+
+        {/* 🔄 New Stranger only in Random Mode */}
+        {mode === "random" && (
+          <button style={styles.newBtn} onClick={newStranger}>
+            New Stranger 🔄
+          </button>
+        )}
+
+        {/* 🔔 Notification */}
         {Notification.permission !== "granted" && (
           <button style={styles.notifyBtn} onClick={enableNotifications}>
             Enable Notifications 🔔
           </button>
         )}
 
-        {/* 🔄 New Stranger button */}
-        <button style={styles.newBtn} onClick={connectSocket}>
-          New Stranger 🔄
-        </button>
-
+        {/* 💬 Messages */}
         <div style={styles.messages}>
           {messages.map((m, i) => (
             <div
@@ -121,12 +129,13 @@ function App() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* ✏️ Input */}
         <div style={styles.inputContainer}>
           <input
             style={styles.input}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Type a message..."
           />
           <button style={styles.button} onClick={sendMessage}>
@@ -160,14 +169,22 @@ const styles = {
   },
   title: { textAlign: "center" },
   status: { textAlign: "center", fontStyle: "italic" },
-
-  notifyBtn: {
-    background: "#ff9800",
-    color: "#fff",
-    border: "none",
-    padding: "6px",
+  switch: { display: "flex", gap: "10px", marginBottom: "10px" },
+  btn: {
+    flex: 1,
+    padding: "8px",
     borderRadius: "6px",
-    marginBottom: "6px",
+    border: "1px solid #2196F3",
+    background: "#fff",
+    cursor: "pointer",
+  },
+  activeBtn: {
+    flex: 1,
+    padding: "8px",
+    borderRadius: "6px",
+    border: "1px solid #2196F3",
+    background: "#2196F3",
+    color: "#fff",
     cursor: "pointer",
   },
   newBtn: {
@@ -177,6 +194,15 @@ const styles = {
     padding: "8px",
     borderRadius: "6px",
     marginBottom: "10px",
+    cursor: "pointer",
+  },
+  notifyBtn: {
+    background: "#ff9800",
+    color: "#fff",
+    border: "none",
+    padding: "6px",
+    borderRadius: "6px",
+    marginBottom: "6px",
     cursor: "pointer",
   },
   messages: {
