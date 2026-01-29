@@ -9,7 +9,7 @@ function App() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    ws.current = new WebSocket("ws://localhost:8000/ws");
+    ws.current = new WebSocket("ws://omeglebackend-production.up.railway.app/ws");
 
     ws.current.onmessage = (event) => {
       if (event.data === "WAITING") {
