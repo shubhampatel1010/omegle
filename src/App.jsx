@@ -8,17 +8,23 @@ function App() {
   const ws = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // ✅ Request notification permission AFTER user action
+  // 🔔 Enable notifications
   const enableNotifications = () => {
     if ("Notification" in window) {
       Notification.requestPermission();
     }
   };
 
-  useEffect(() => {
+  // 🔌 Connect WebSocket
+  const connectSocket = () => {
+    if (ws.current) ws.current.close();
+
     ws.current = new WebSocket(
       "wss://omeglebackend-production.up.railway.app/ws"
     );
+
+    setStatus("Connecting...");
+    setMessages([]);
 
     ws.current.onmessage = (event) => {
       const msg = event.data;
@@ -39,26 +45,30 @@ function App() {
         return;
       }
 
-      // ✅ Stranger message
+      // Stranger message
       setMessages((prev) => [...prev, { from: "Stranger", text: msg }]);
 
-      // 🔔 Chrome notification
+      // 🔔 Notification
       if (
         "Notification" in window &&
         Notification.permission === "granted" &&
         document.visibilityState === "hidden"
       ) {
-        const notification = new Notification("New message from Stranger", {
+        const n = new Notification("New message from Stranger", {
           body: msg,
         });
 
-        notification.onclick = () => {
+        n.onclick = () => {
           window.focus();
-          notification.close();
+          n.close();
         };
       }
     };
+  };
 
+  // Initial connection
+  useEffect(() => {
+    connectSocket();
     return () => ws.current && ws.current.close();
   }, []);
 
@@ -83,12 +93,17 @@ function App() {
         <h2 style={styles.title}>Anonymous Random Chat</h2>
         <p style={styles.status}>{status}</p>
 
-        {/* ✅ Enable notifications button */}
+        {/* 🔔 Notification permission */}
         {Notification.permission !== "granted" && (
           <button style={styles.notifyBtn} onClick={enableNotifications}>
             Enable Notifications 🔔
           </button>
         )}
+
+        {/* 🔄 New Stranger button */}
+        <button style={styles.newBtn} onClick={connectSocket}>
+          New Stranger 🔄
+        </button>
 
         <div style={styles.messages}>
           {messages.map((m, i) => (
@@ -136,29 +151,32 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     width: "400px",
-    height: "600px",
+    height: "650px",
     border: "1px solid #ccc",
     borderRadius: "10px",
     backgroundColor: "#FAFAFA",
     padding: "20px",
     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
-  title: {
-    textAlign: "center",
-    color: "#333",
-  },
-  status: {
-    textAlign: "center",
-    fontStyle: "italic",
-    color: "#666",
-  },
+  title: { textAlign: "center" },
+  status: { textAlign: "center", fontStyle: "italic" },
+
   notifyBtn: {
-    margin: "10px auto",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    border: "none",
-    backgroundColor: "#ff9800",
+    background: "#ff9800",
     color: "#fff",
+    border: "none",
+    padding: "6px",
+    borderRadius: "6px",
+    marginBottom: "6px",
+    cursor: "pointer",
+  },
+  newBtn: {
+    background: "#2196F3",
+    color: "#fff",
+    border: "none",
+    padding: "8px",
+    borderRadius: "6px",
+    marginBottom: "10px",
     cursor: "pointer",
   },
   messages: {
@@ -171,17 +189,16 @@ const styles = {
     border: "1px solid #e0e0e0",
     borderRadius: "10px",
     backgroundColor: "#FFF",
-    marginBottom: "10px",
   },
   message: {
     padding: "8px 12px",
     borderRadius: "15px",
     maxWidth: "70%",
-    wordBreak: "break-word",
   },
   inputContainer: {
     display: "flex",
     gap: "10px",
+    marginTop: "10px",
   },
   input: {
     flex: 1,
