@@ -9,6 +9,15 @@ function App() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
+  if ("Notification" in window) {
+    if (Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }
+}, []);
+
+
+  useEffect(() => {
     ws.current = new WebSocket("wss://omeglebackend-production.up.railway.app/ws");
 
     ws.current.onmessage = (event) => {
@@ -21,6 +30,21 @@ function App() {
         setMessages([]);
       } else {
         setMessages((prev) => [...prev, { from: "Stranger", text: event.data }]);
+        // 🔔 SHOW CHROME NOTIFICATION
+        if (
+          Notification.permission === "granted" &&
+          document.hidden // tab not active
+        ) {
+          const notification = new Notification("New message from Stranger", {
+            body: event.data,
+            icon: "https://cdn-icons-png.flaticon.com/512/733/733585.png", // optional
+          });
+
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+        }
       }
     };
 
