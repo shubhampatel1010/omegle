@@ -20,12 +20,12 @@ function App() {
   const connectSocket = (selectedMode = mode) => {
     if (ws.current) ws.current.close();
 
-    // ws.current = new WebSocket(
-    //   `wss://omeglebackend-production.up.railway.app/ws?mode=${selectedMode}`
-    // );
-      ws.current = new WebSocket(
-      `ws://localhost:8000/ws?mode=${selectedMode}`
+    ws.current = new WebSocket(
+      `wss://omeglebackend-production.up.railway.app/ws?mode=${selectedMode}`
     );
+    //   ws.current = new WebSocket(
+    //   `ws://localhost:8000/ws?mode=${selectedMode}`
+    // );
 
     setMessages([]);
     setStatus("Connecting...");
@@ -42,7 +42,7 @@ function App() {
       if (msg === "CONNECTED_TO_GROUP") return setStatus("Connected to group chat");
 
       // Normal messages
-      setMessages((prev) => [...prev, { from: "Other", text: msg }]);
+      setMessages((prev) => [...prev, { from: "Stranger", text: msg }]);
 
       // 🔔 Notifications
       if ("Notification" in window && Notification.permission === "granted" && document.visibilityState === "hidden") {
