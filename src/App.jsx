@@ -224,8 +224,8 @@ function App() {
     if (ws.current) ws.current.close();
 
     ws.current = new WebSocket(
-      `ws://localhost:8000/ws?mode=${selectedMode}`
-      // `wss://omeglebackend-production.up.railway.app/ws?mode=${selectedMode}`
+      // `ws://localhost:8000/ws?mode=${selectedMode}`
+      `wss://omeglebackend-production.up.railway.app/ws?mode=${selectedMode}`
     );
 
     setMessages([]);
